@@ -1,0 +1,11 @@
+{
+  "requires": true,
+  "lockfileVersion": 1,
+  "dependencies": {
+    "node-red-node-intel-gpio": {
+      "version": "0.0.6",
+      "resolved": "https://registry.npmjs.org/node-red-node-intel-gpio/-/node-red-node-intel-gpio-0.0.6.tgz",
+      "integrity": "sha512-ykZKgpillqBa69oN7gvR3CCY4EbyIRZZTad+YAC1Q6peIebugUD1QttNNwUeVe4t3oR1aHP2kdUUuyuPOt3EJA=="
+    }
+  }
+}
