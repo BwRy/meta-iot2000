@@ -540,12 +540,9 @@ class SoftwareSettings:
 		self.finish = True
 
 	def changeAutostart(self):
-		task = subprocess.Popen("/etc/init.d/sshd status", stdout=subprocess.PIPE, shell=True)
-		taskReturn = task.stdout.read().decode().lstrip().rstrip()
-		sshEnabled = "running" in taskReturn
-
-		noderedAutostartEnabled = os.path.isfile("/etc/init.d/launch_node-red.sh")
-		mosquittoAutostartEnabled = os.path.isfile("/etc/init.d/launch_mosquitto.sh")
+		noderedAutostartEnabled = self.serviceEnabled("node-red")
+		sshEnabled = self.serviceEnabled("sshd")
+		mosquittoAutostartEnabled = self.serviceEnabled("mosquitto")
 
 		bb = ButtonBar(self.topmenu.gscreen, [("Done", "done", "ESC")])
 		ct = CheckboxTree(height = 7, scroll = 1,width=40)
@@ -566,48 +563,35 @@ class SoftwareSettings:
 
 		if (noderedAutostartEnabled != noderedAutostartEnabledNew):
 			if ("Auto Start node-red" in selectedOptions):
-				self.registerLaunchScript("on", "launch_node-red.sh", "#!/bin/sh\nsu root -c \"/usr/bin/node /usr/lib/node_modules/node-red/red >/dev/null\" &")
+				self.update_rc("node-red", "on")
 			else:
-				self.registerLaunchScript("off", "launch_node-red.sh", "")
+				self.update_rc("node-red", "off")
 
 		if (sshEnabled != sshEnabledNew):
 			if ("SSH Server Enabled" in selectedOptions):
-				changeSshServerSetting("on")
+				self.update_rc("sshd", "on")
 			else:
-				changeSshServerSetting("off")
+				self.update_rc("sshd", "off")
 
 		if (mosquittoAutostartEnabled != mosquittoAutostartEnabledNew):
 			if ("Auto Start Mosquitto Broker" in selectedOptions):
-				self.registerLaunchScript("on", "launch_mosquitto.sh", "#!/bin/sh\nsu root -c \"/usr/sbin/mosquitto -c /etc/mosquitto/mosquitto.conf -d &>/dev/null\" ")
-
-				fileName = "/etc/mosquitto/mosquitto.conf"
-				initFile = open(fileName, 'w')
-				initFile.write("user root")
-				initFile.close()
+				self.update_rc("mosquitto", "on")
 			else:
-				self.registerLaunchScript("off", "launch_mosquitto.sh", "")
+				self.update_rc("mosquitto", "off")
 
-	def changeSshServerSetting(self, status):
-		if (status == "on"):
-			subprocess.call("update-rc.d -f sshd defaults", shell=True, stdout=open(os.devnull, 'wb'))
-			subprocess.call("/etc/init.d/sshd start", shell=True, stdout=open(os.devnull, 'wb'))
-		elif (status == "off"):
-			subprocess.call("/etc/init.d/sshd stop", shell=True, stdout=open(os.devnull, 'wb'))
-			subprocess.call("update-rc.d -f sshd remove", shell=True, stdout=open(os.devnull, 'wb'))
-	def registerLaunchScript(self, status, fileName, scriptcontent):
-		if (status == "on"):
-			initFile = open("/etc/init.d/" + fileName, 'w')
-			initFile.write(scriptcontent)
-			initFile.close()
+	def update_rc(self, service, status):
+		with open(os.devnull, 'wb') as devnull:
+			if (status == "on"):
+				subprocess.call("update-rc.d %s defaults" % service, shell=True, stdout=devnull)
+				subprocess.call("/etc/init.d/%s start" % service, shell=True, stdout=devnull)
+			elif (status == "off"):
+				subprocess.call("/etc/init.d/%s stop" % service, shell=True, stdout=devnull)
+				subprocess.call("update-rc.d -f %s remove" % service, shell=True, stdout=devnull, stderr=devnull)
 
-			st = os.stat("/etc/init.d/" + fileName)
-			os.chmod("/etc/init.d/" + fileName, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-
-			subprocess.call("update-rc.d " + fileName + " defaults", shell=True, stdout=open(os.devnull, 'wb'))
-			subprocess.call("/etc/init.d/" + fileName, shell=True, stdout=open(os.devnull, 'wb'))
-		elif (status == "off"):
-			subprocess.call("update-rc.d " + fileName + " remove", shell=True, stdout=open(os.devnull, 'wb'))
-			os.remove("/etc/init.d/" + fileName)
+	def serviceEnabled(self, service):
+		task = subprocess.Popen("/etc/init.d/%s status" % service, stdout=subprocess.PIPE, shell=True)
+		taskReturn = task.stdout.read().decode().lstrip().rstrip()
+		return "running" in taskReturn
 
 class Peripherals:
 	def __init__(self, topmenu):
